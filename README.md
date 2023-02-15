@@ -32,7 +32,7 @@ Dans Svelte, une application est composée d'un ou plusieurs *composants*. Un co
 ```
 Il ne serait pas pratique de mettre toute votre application dans un seul composant. Au lieu de cela, nous pouvons importer des composants à partir d'autres fichiers, puis les utiliser comme si nous incluions des éléments.
 
-Ajoutons une `<script>` balise App.svelte qui importe le fichier (notre composant) `Nested.svelte` dans notre application ...
+Ajoutons une balise `<script>` au fichier `App.svelte`, qui importe le fichier (notre composant) `Nested.svelte` dans notre application ...
 
 ***Fichier*** `Nested.svelte` ***(sur le screenshot il est dénommé*** `Niché.svelte` ***c'est à cause de google traduction) :***
 ```html
@@ -75,10 +75,190 @@ npm create svelte@latest myapp
 ext install svelte.svelte-vscode
 ```
 
+# Réactivité
+
+## DOM et application
+
+Svelte possède un puissant sytème de *réactivité*, qui lui permet de synchroniser le DOM avec l'application.
+
+***Code de base :***
+```bash
+<script>
+	let count = 0;
+
+	function incrementCount() {
+		// event handler code goes here
+	}
+</script>
+
+<button>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+```
+
+On connecte un gestionnaire d'événements.
+
+```bash
+<button on:click={incrementCount}>
+```
+
+A l'intérieur de la fonction `incrementCount`, il suffit de changer la valeur de `count` :
+
+```bash
+function incrementCount() {
+	count += 1;
+}
+```
+
+***Resultat :***
+
+![Resultat4](images/screenshot4-svelte.png)
+
+Svelte "instrumente" cette affectation avec du code qui lui indique que le DOM devra être mis à jour.
+
+## Déclaration réactives
+
+ En plus de synchro le DOM aux variables, Svelte permet aussi de synchroniser les variables les unes avec les autres à l'aide de déclarations réactives.
+
+ ***Code de base :***
+
+ ```bash
+ <script>
+	let count = 0;
+
+	function handleClick() {
+		count += 1;
+	}
+</script>
+
+<button on:click={handleClick}>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+```
+
+La déclaration réactive ici est écrite dans un JavaScript non-conventionnelle, mais fonctionnelle et que Svlete comprend :
+
+```bash
+let count = 0;
+$: doubled = count * 2;
+```
+
+Utilisons `doubled` dans notre balisage :
+
+```bash
+<p>{count} doubled is {doubled}</p>
+```
+
+***Resultat :***
+
+![Resultat5](images/screenshot5-svelte.png)
+
+*Dans le `<p>` on aurait pu écrire `{count*2}`, à la place de `{doubled}`, et sans passer par le balisage avec le `$:` qui est dans le `<script>`, le resultat aurait été le même. Seulement les valeurs réactives sont très utiles pour référencer plusieurs fois une valeur ou que vous avez des valeurs qui dépendent d'autres valeurs réactives.*
+
+## Instructions arbitraire réactive 
+
+Nous ne sommes pas limités à déclarer des valeurs réactives, nous pouvons également exécuter des instructions arbitraires de manière réactive.
+
+***Code de base :***
+```bash
+<script>
+	let count = 0;
+
+	function incrementCount() {
+		// event handler code goes here
+	}
+</script>
+
+<button>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+```
+
+On enregistre la valeur de `count` chaque fois qu'elle change.
+
+```bash
+$: console.log('the count is ' + count);
+```
+![Result6](images/screenshot6-svelte.png)
+
+On regroupe les instructions dans un bloc.
+
+```bash
+$: {
+	console.log('the count is ' + count);
+	alert('I SAID THE COUNT IS ' + count);
+}
+```
+![Result7](images/screenshot7-svelte.png)
+
+On peut même mettre le `$:` devant des blocs comme `if` :
+
+![Resultat8](images/screenshot8-svelte.png)
+
+## Mettre à jour des tableaux et des objets
+
+Afin de pouvoir mettre à jour une méthode, il va falloir s'attribuer une valeur à elle même pour indiquer au compilateur que celle-ci a changé. Sans ça, la méthode qui s'occupe pour modifié un tableau ou un objet, ne mettra pas à jour les nouvelles valeurs qui ont changé.
+
+***Code de base***
+
+```bash
+<script>
+	let numbers = [1, 2, 3, 4];
+
+	function addNumber() {
+		numbers.push(numbers.length + 1);
+	}
+
+	$: sum = numbers.reduce((t, n) => t + n, 0);
+</script>
+
+<p>{numbers.join(' + ')} = {sum}</p>
+
+<button on:click={addNumber}>
+	Add a number
+</button>
+```
+*Dans le code ci-dessus, le boutton qui appelle la fonction `addNumber`, ajoute une valeur au tableau, mais en revanche elle ne déclenche pas le recalcul de `sum`.*
+
+Alors on attribue la valeur `numbers` à elle même pour indiquer au compilateur que celle-ci a changé. Ici, plusieurs manière d'ecrire sont possible (le resultat restera le même.).
+
+**Syntaxe normale**<br>
+
+```bash
+function addNumber() {
+	numbers.push(numbers.length + 1);
+	numbers = numbers;
+}
+```
+*ou*<br>
+
+**Syntaxe ES6**
+
+```bash
+function addNumber() {
+	numbers = [...numbers, numbers.length + 1];
+}
+```
+
+***Resultat (syntaxe normale) :***
+
+![Resultat9](images/screenshot9-svelte.png)
+
+Il faut que l'affectation soit faite **directement** à la référence.<br> 
+Si celle-ci est faite **indirectement**, alors cela ne fonctionnera pas. Il faudra faire comme dans le resultats ci-dessus, c'est à dire s'attribuer une valeur à elle même.<br>
+Une règle empirique et simple : la variable mise à jour doit apparaître directement sur le côté gauche de l'affectation.
+
+
+
+
+
+
+
+
 
 ---
 
-**NB**: *Beaucoup de copier/coller depuis le site officiel car c'est très bien expliqué et facile à comprendre. J'ai synthétiser pour aller à l'essentiel donc ce support n'est pas recommander pour quelqu'un qui n'a pas/trop peu de connaisssance en la matiére.*
+**NB**: *Beaucoup de copier/coller depuis le site officiel car c'est très bien expliqué et facile à comprendre. J'ai synthétiser pour aller à l'essentiel donc ce support n'est pas recommander pour quelqu'un qui n'a pas/trop peu de connaisssance en la matière.*
 
 *Source : https://svelte.dev/tutorial/basics*
 
